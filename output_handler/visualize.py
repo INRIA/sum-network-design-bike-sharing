@@ -38,22 +38,65 @@ class Visualize:
                                                   grid_generator.length,
                                                   grid_generator.square_size)
         self.model = model
+        self.demand_generator = demand_generator
         # self._plot_demand_flow(self.boundary, demand_generator)
-        self._plot_model_output(self.boundary)
+        #self._plot_model_output(self.boundary)
 
-    def _plot_demand_flow(self, boundaries, demand_generator):
+    def plot_demand_flow(self):
+        self._plot_demand_flow(self.boundary, self.demand_generator)
+    
+    def plot_model_output(self):
+        self._plot_model_output(self.boundary)
+        
+    def plot_grid(self):
+        """
+        Plot the grid with zone boundaries.
+        :param boundaries: A list of zone boundaries, where each boundary is a tuple of (x_min, x_max, y_min, y_max).
+        """
+        plt = self._plot_grid()
+        plt.title("Process 1: Empty Zone Boundaries - City Grid")
+        plt.show()
+        
+    def plot_grid_with_nodes(self):
+        """
+        Plot the grid with zone boundaries and nodes.
+        :param boundaries: A list of zone boundaries, where each boundary is a tuple of (x_min, x_max, y_min, y_max).
+        """
+        plt = self._plot_grid_with_nodes()
+        plt.title("Process 2: Zone Boundaries with Nodes - Public Transport Stops")
+        plt.show()
+        
+    def _plot_grid(self):
+        """
+        Plot the grid with zone boundaries.
+        :param boundaries: A list of zone boundaries, where each boundary is a tuple of (x_min, x_max, y_min, y_max).
+        """
         plt.figure(figsize=(10, 10))
-        for x_min, x_max, y_min, y_max in boundaries:
+        for x_min, x_max, y_min, y_max in self.boundary:
             # 绘制边框的四条边
             plt.plot([x_min, x_max], [y_min, y_min], color="black")  # 下边
             plt.plot([x_min, x_max], [y_max, y_max], color="black")  # 上边
             plt.plot([x_min, x_min], [y_min, y_max], color="black")  # 左边
             plt.plot([x_max, x_max], [y_min, y_max], color="black")  # 右边
 
+        
+        return plt
+            
+    def _plot_grid_with_nodes(self):
+        """
+        Plot the grid with zone boundaries and nodes.
+        :param boundaries: A list of zone boundaries, where each boundary is a tuple of (x_min, x_max, y_min, y_max).
+        """
+        plt = self._plot_grid()
         for zone_id, (center_x, center_y) in self.grid_centers.items():
             plt.scatter(center_x, center_y, color="red", s=10)  # 标记中心点
             plt.text(center_x, center_y, str(zone_id), fontsize=8, ha='center', va='center')  # 添加编号
-
+        
+        return plt
+            
+    def _plot_demand_flow(self, boundaries, demand_generator):
+        plt = self._plot_grid_with_nodes()
+        
         # 3️⃣ 计算 OD 需求流量
         od_flows = {}
         for ((i, j), t), demand in demand_generator.demand_matrix.items():
@@ -64,8 +107,9 @@ class Visualize:
                     od_flows[(i, j)] = demand
 
         # 计算平均需求
-        for key in od_flows:
-            od_flows[key] /= len(self.model.T)  # 计算每条路径的平均需求
+        if (self.model):
+            for key in od_flows:
+                od_flows[key] /= len(self.model.T)  # 计算每条路径的平均需求
 
         # 4️⃣ 画弧形 OD 流量线
         ax = plt.gca()
@@ -91,11 +135,13 @@ class Visualize:
         plt.xlim(0, boundaries[-1][1])
         plt.ylim(0, boundaries[-1][1])
         plt.gca().set_aspect("equal", adjustable="box")
-        plt.title("OD Demand Flow (Curved Arrows)")
+        plt.title("Process 3: User Demand Flow (origin-destination)")
 
         # 6️⃣ 保存图片
-        output_path = add_plot_cwd(f"OD_Demand_Flow_{len(self.model.T)}_periods_{self.model.today_str}.png")
-        plt.savefig(output_path, format="png", dpi=300)
+        if (self.model):
+            output_path = add_plot_cwd(f"OD_Demand_Flow_{len(self.model.T)}_periods_{self.model.today_str}.png")
+            plt.savefig(output_path, format="png", dpi=300)
+        
         plt.show()
 
     def _plot_model_output(self, boundaries):
@@ -103,14 +149,8 @@ class Visualize:
         Plot the grid with zone boundaries.
         :param boundaries: A list of zone boundaries, where each boundary is a tuple of (x_min, x_max, y_min, y_max).
         """
-        plt.figure(figsize=(10, 10))
-        for x_min, x_max, y_min, y_max in boundaries:
-            # 绘制边框的四条边
-            plt.plot([x_min, x_max], [y_min, y_min], color="black")  # 下边
-            plt.plot([x_min, x_max], [y_max, y_max], color="black")  # 上边
-            plt.plot([x_min, x_min], [y_min, y_max], color="black")  # 左边
-            plt.plot([x_max, x_max], [y_min, y_max], color="black")  # 右边
-
+        plt = self._plot_grid()
+        
         colors = ["blue", "green", "purple", "orange", "brown"]  # 用于不同线路的颜色
         for i, (route_name, stops) in enumerate(self.routes.items()):
             route_color = colors[i % len(colors)]  # 循环选择颜色

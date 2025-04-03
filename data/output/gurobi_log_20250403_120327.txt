@@ -1,0 +1,38 @@
+Gurobi Optimizer version 12.0.1 build v12.0.1rc0 (linux64 - "Ubuntu 24.04.2 LTS")
+
+CPU model: Intel(R) Core(TM) i7-8665U CPU @ 1.90GHz, instruction set [SSE2|AVX|AVX2]
+Thread count: 4 physical cores, 8 logical processors, using up to 8 threads
+
+Non-default parameters:
+TimeLimit  1800
+Method  3
+
+Optimize a model with 1213 rows, 1244 columns and 3130 nonzeros
+Model fingerprint: 0xbec5a6cf
+Variable types: 0 continuous, 1244 integer (221 binary)
+Coefficient statistics:
+  Matrix range     [1e+00, 1e+06]
+  Objective range  [8e-01, 9e-01]
+  Bounds range     [1e+00, 1e+01]
+  RHS range        [1e+00, 2e+04]
+Found heuristic solution: objective -0.0000000
+Found heuristic solution: objective 7.2000000
+Presolve removed 955 rows and 896 columns
+Presolve time: 0.01s
+Presolved: 258 rows, 348 columns, 1200 nonzeros
+Variable types: 0 continuous, 348 integer (197 binary)
+
+Root relaxation: objective 1.641000e+02, 157 iterations, 0.00 seconds (0.00 work units)
+
+    Nodes    |    Current Node    |     Objective Bounds      |     Work
+ Expl Unexpl |  Obj  Depth IntInf | Incumbent    BestBd   Gap | It/Node Time
+
+*    0     0               0     164.1000000  164.10000  0.00%     -    0s
+
+Explored 1 nodes (157 simplex iterations) in 0.01 seconds (0.01 work units)
+Thread count was 8 (of 8 available processors)
+
+Solution count 3: 164.1 7.2 -0 
+
+Optimal solution found (tolerance 1.00e-04)
+Best objective 1.641000000000e+02, best bound 1.641000000000e+02, gap 0.0000%

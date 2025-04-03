@@ -41,8 +41,6 @@ class PublicTransport:
         # todo: 目前只支持输入一条线路 待修复
         route_stops = []
         for i, point_id in enumerate(points):
-            print(f"the grid_centers: {self.grid_generator.grid_centers}")
-            print(f"point_id: {point_id}")
             coord = self.grid_generator.grid_centers[point_id]
             zone = point_id
             catchment_area = self._calculate_catchment_area(coord, WALK_CATCHMENT_RADIUS)

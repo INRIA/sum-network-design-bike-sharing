@@ -21,4 +21,4 @@ def save_gurobi_results(self, filename_prefix=f"gurobi_results_{AREA_LENGTH}*{AR
     with open(add_output_cwd(filename), "w") as f:
         json.dump(results, f, indent=4)
 
-    print(f"✅ Gurobi 结果已保存到 {filename}")
+    print(f"✅ Gurobi resulst at {filename}")

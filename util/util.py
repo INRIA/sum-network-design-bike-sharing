@@ -9,8 +9,8 @@ NUM_SHORTEST_PATHS = 2
 DETOUR_RATIO = 1.2
 
 # Area Size
-AREA_LENGTH = 4
-AREA_WIDTH = 4
+AREA_LENGTH = 5
+AREA_WIDTH = 5
 CELL_SIZE = 1
 
 # Radius to define the catchment area of two points by walking & biking
@@ -46,7 +46,7 @@ RISK_TOLERANCE = 0.8
 # FIXED_LINE_POINTS_1 = [0, 6, 12, 18, 24]
 # FIXED_LINE_POINTS_2 = [20, 16, 12, 8, 4]
 #FIXED_LINE_POINTS_LST = [[11, 22, 43, 44, 45, 46, 67, 78, 88]]
-FIXED_LINE_POINTS_LST = [[1, 11, 15]]
+FIXED_LINE_POINTS_LST = [[1, 11, 15, 22]]
 # FIXED_LINE_POINTS = [0, 4, 8]
 #FIXED_LINE_POINTS = [0, 3]
 

@@ -5,7 +5,6 @@ from output_handler.calculate_metrics import calculate_metrics
 
 
 def post_process(self):
-    print("\n✅ 选定的站点（y=1）及其初始库存 v 和容量 z：")
     for i in self.B:
         y_val = self.y[i].X  # 获取决策变量 y[i] 的最优值
         v_val = self.v[i, 0].X  # 获取初始阶段每个站点车辆
@@ -42,7 +41,7 @@ def post_process(self):
         # 计算 self.x_b 的总流量
         total_x_flow = sum(x_flow[k, t, path].X for k, t, path in x_flow)
         # 输出结果
-        print(f"{mode} 总流量: {total_x_flow}")
+        print(f"{mode} total flows : {total_x_flow}")
 
     # find_unmet_demand_od(self)
 
