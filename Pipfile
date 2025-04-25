@@ -12,6 +12,7 @@ networkx = "*"
 igraph = "*"
 matplotlib = "*"
 tqdm = "*"
+pillow = "*"
 
 [dev-packages]
 
