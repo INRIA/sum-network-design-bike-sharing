@@ -31,8 +31,7 @@ Check the [Python packaging user guide](https://packaging.python.org/en/latest/t
 
 On Debian protected environment, create a virtual enviornment first :
 ```bash
-python3 -m venv env
-source env/bin/activate
+python3 -m venv env && source env/bin/activate && pip install pipenv && pipenv install --dev
 ```
 
 Install library pipenv to handle the environment and the dependencies.

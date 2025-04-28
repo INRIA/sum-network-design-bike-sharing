@@ -4,15 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-gurobipy = "*"
-pydantic = "*"
-pandas = "*"
-ipykernel = "*"
-networkx = "*"
-igraph = "*"
-matplotlib = "*"
-tqdm = "*"
-pillow = "*"
+shared-mobility-network-optimizer = {file = "network-design-bss-package/shared_mobility_network_optimizer-0.1.0-cp39-cp39-macosx_10_9_universal2.whl"}
 
 [dev-packages]
 
