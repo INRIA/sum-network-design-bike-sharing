@@ -19,6 +19,7 @@ venv.bak/
 dist/
 build/
 *.whl
+!network-design-bss-package/*.whl
 
 # Unit test / coverage reports
 htmlcov/
