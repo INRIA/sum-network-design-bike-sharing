@@ -4,6 +4,8 @@
 ## Overview
 This repository contains a **Bike-Sharing Optimization Model** designed to optimize fleet rebalancing, station placement, and multimodal transportation integration. The model minimizes operational costs while ensuring efficient bike availability across a network.
 
+Check out our [dynamic results demonstration map](https://inria.github.io/sum-network-design-bike-sharing). 
+
 ## ✨ Features
 - **Fleet Rebalancing Optimization**: Efficiently redistributes bikes using a fleet of capacitated trucks.
 - **Station Location & Capacity Optimization**: Determines the best locations and sizes for bike stations.
@@ -44,6 +46,10 @@ Install the necessary packages using the following command:
 ```bash
 pipenv install --dev
 ```
+The library installed : 
+- network-design-bss-package/shared_mobility_network_optimizer-0.1.0-cp39-cp39-macosx_10_9_universal2.whl
+
+***Gurobi is a dependency in the library, a valid license is required to run with high volume simulation parameters.***
 
 Check the [Pipenv documentation](https://pipenv.pypa.io/en/latest) for more information on how to use Pipenv.
 
