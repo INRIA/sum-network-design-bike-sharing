@@ -74,6 +74,44 @@
         return [lat1 + (lat2 - lat1) * factor, lon1 + (lon2 - lon1) * factor];
       }
 
+      function getCurvedPath(from, to, side = "left", bend = 0.2) {
+        const [lat1, lng1] = from;
+        const [lat2, lng2] = to;
+        const midLat = (lat1 + lat2) / 2;
+        const midLng = (lng1 + lng2) / 2;
+
+        // Perpendicular offset
+        const dx = lng2 - lng1;
+        const dy = lat2 - lat1;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const offsetLat = (-dy / length) * bend;
+        const offsetLng = (dx / length) * bend;
+        const direction = side === "left" ? 1 : -1;
+
+        const controlLat = midLat + direction * offsetLat;
+        const controlLng = midLng + direction * offsetLng;
+
+        return ["M", [lat1, lng1], "Q", [controlLat, controlLng], [lat2, lng2]];
+      }
+
+      function getPositionNearOrigin(
+        from,
+        to,
+        side = "left",
+        bend = 0.02,
+        t = 0.15
+      ) {
+        const path = getCurvedPath(from, to, side, bend);
+
+        const origin = path[1]; // from
+        const control = path[3]; // control point
+
+        const lat = origin[0] + (control[0] - origin[0]) * t;
+        const lng = origin[1] + (control[1] - origin[1]) * t;
+
+        return [lat, lng];
+      }
+
       // Initialize the map
       const map = L.map("map", {
         crs: L.CRS.Simple,
@@ -87,7 +125,115 @@
 
       //MAP helper functions
       function initializePeriod(period, stationFeatures, flowFeatures) {
+        const stationsLayer = initializeStationsLayer(stationFeatures, period);
+        const periodStations = initializeFlowsByPeriod(flowFeatures, period);
+
+        periodLayers[period] = {
+          staticLayer: stationsLayer,
+          layersPerStation: periodStations,
+          initialized: true,
+          display: false,
+        };
+      }
+
+      function initializeFlowsByPeriod(flowFeatures, period) {
         const periodStations = {};
+
+        flowFeatures
+          .filter((f) => f.properties.period === period)
+          .forEach((f) => {
+            const coords = f.geometry.coordinates;
+            const from = f.properties.from;
+            const to = f.properties.to;
+            const quantity = f.properties.quantity;
+            const latlngs = coords.map(([x, y]) => [y, x]);
+
+            const originCoords = latlngs[0];
+            const destinationCoords = latlngs[latlngs.length - 1];
+
+            const fromFlowsLayer = periodStations[from] ?? L.layerGroup();
+            const toFlowsLayer = periodStations[to] ?? L.layerGroup();
+
+            // FROM → TO (curve left)
+            const fromPath = getCurvedPath(
+              originCoords,
+              destinationCoords,
+              "left",
+              0.3
+            );
+            const fromLine = L.curve(fromPath, {
+              color: COLORS.ORANGE,
+              weight: 2,
+              opacity: 0.9,
+            });
+
+            // TO → FROM (curve right)
+            const toPath = getCurvedPath(
+              destinationCoords,
+              originCoords,
+              "right",
+              0.3
+            );
+            const toLine = L.curve(toPath, {
+              color: COLORS.GREEN,
+              weight: 2,
+              opacity: 0.9,
+            });
+
+            const popup = `P${period}: ${from} → ${to}<br/>
+                                  Qty: ${quantity}<br/> `;
+
+            // Add quantity label slightly below the arrow
+            const fromQuantityMarker = L.marker(
+              getPositionNearOrigin(
+                originCoords,
+                destinationCoords,
+                "left",
+                0.3,
+                0.3
+              ),
+              {
+                icon: L.divIcon({
+                  className: "quantity-label",
+                  html: "-" + quantity,
+                }),
+                interactive: false,
+              }
+            );
+
+            const toQuantityMarker = L.marker(
+              getPositionNearOrigin(
+                destinationCoords,
+                originCoords,
+                "right",
+                0.3,
+                0.3
+              ),
+              {
+                icon: L.divIcon({
+                  className: "quantity-label",
+                  html: "+" + quantity,
+                }),
+                interactive: false,
+              }
+            );
+
+            fromLine.bindPopup(popup);
+            fromQuantityMarker.bindPopup(popup);
+            fromLine.addTo(fromFlowsLayer);
+            fromQuantityMarker.addTo(fromFlowsLayer);
+
+            toLine.bindPopup(popup);
+            toQuantityMarker.bindPopup(popup);
+            toLine.addTo(toFlowsLayer);
+            toQuantityMarker.addTo(toFlowsLayer);
+
+            periodStations[from] = fromFlowsLayer;
+            periodStations[to] = toFlowsLayer;
+          });
+        return periodStations;
+      }
+      function initializeStationsLayer(stationFeatures, period) {
         const stationsLayer = L.layerGroup();
         const maxCapacity = Math.max(
           ...stationFeatures.map((s) => s.properties.capacity)
@@ -146,81 +292,7 @@
             togglePeriodStationLayers(period, station_id);
           });
         });
-
-        // Group flows by station
-        flowFeatures
-          .filter((f) => f.properties.period === period)
-          .forEach((f) => {
-            //const stationFlowLayer = L.layerGroup();
-            const coords = f.geometry.coordinates;
-            const from = f.properties.from;
-            const to = f.properties.to;
-            const quantity = f.properties.quantity;
-            const latlngs = coords.map(([x, y]) => [y, x]);
-
-            const originCoords = latlngs[0];
-            const destinationCoords = latlngs[latlngs.length - 1];
-
-            const fromFlowsLayer = periodStations[from] ?? L.layerGroup();
-            const toFlowsLayer = periodStations[to] ?? L.layerGroup();
-
-            const fromLine = L.polyline(latlngs, {
-              color: COLORS.ORANGE,
-              weight: 3,
-              opacity: 0.9,
-            });
-            const toLine = L.polyline(latlngs, {
-              color: COLORS.GREEN,
-              weight: 2,
-              opacity: 0.9,
-            });
-
-            const popup = `P${period}: ${from} → ${to}<br/>
-                                  Qty: ${quantity}<br/> `;
-
-            // Compute midpoint
-            const [y1, x1] = latlngs[0];
-            const [y2, x2] = latlngs[latlngs.length - 1];
-            const nearFrom = interpolatePoint(y1, x1, y2, x2, 0.1);
-            const nearTo = interpolatePoint(y2, x2, y1, x1, 0.2);
-
-            // Add quantity label slightly below the arrow
-            const fromQuantityMarker = L.marker([nearFrom[0], nearFrom[1]], {
-              icon: L.divIcon({
-                className: "quantity-label",
-                html: "-" + quantity,
-              }),
-              interactive: false,
-            });
-
-            const toQuantityMarker = L.marker([nearTo[0], nearTo[1]], {
-              icon: L.divIcon({
-                className: "quantity-label",
-                html: "+" + quantity,
-              }),
-              interactive: false,
-            });
-
-            fromLine.bindPopup(popup);
-            fromQuantityMarker.bindPopup(popup);
-            fromLine.addTo(fromFlowsLayer);
-            fromQuantityMarker.addTo(fromFlowsLayer);
-
-            toLine.bindPopup(popup);
-            toQuantityMarker.bindPopup(popup);
-            toLine.addTo(toFlowsLayer);
-            toQuantityMarker.addTo(toFlowsLayer);
-
-            periodStations[from] = fromFlowsLayer;
-            periodStations[to] = toFlowsLayer;
-          });
-
-        periodLayers[period] = {
-          staticLayer: stationsLayer,
-          layersPerStation: periodStations,
-          initialized: true,
-          display: false,
-        };
+        return stationsLayer;
       }
 
       function togglePeriodStationLayers(p, stationId) {
