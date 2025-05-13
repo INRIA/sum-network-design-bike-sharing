@@ -1,67 +1,386 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaflet Public Transport Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-</head>
-<body>
-    <div id="map" style="width: 100%; height: 600px;"></div>
+<html>
+  <head>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-semicircle"></script>
+    <script src="https://elfalem.github.io/Leaflet.curve/src/leaflet.curve.js"></script>
+    <meta charset="utf-8" />
+    <title>Bike Sharing Network Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      html,
+      body,
+      #map {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
 
     <script>
-        // Initialize Map
-        var map = L.map('map').setView([46.2, 6.14], 12); // Center in Geneva
+      //Constants
+      const COLORS = {
+        GREEN: "#98C33A",
+        BLUE: "#004494",
+        ORANGE: "#FF632F",
+        BLUE_LIGHT: "#75BDFB",
+        GRAY: "#606060",
+        GRAY_LIGHT: "#DADADA",
+        WHITE: "#FFFFFF",
+      };
+      const MAX_RADIUS = 0.05 * 8; // Maximum radius for circle markers
 
-        // Add OpenStreetMap Layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+      // Helper functions
+      const getRadius = (cap, maxCapacity) => (cap / maxCapacity) * MAX_RADIUS;
 
-        // Load Public Transport Stops
-        fetch("public_transport_stops.geojson")
-            .then(response => response.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    pointToLayer: function (feature, latlng) {
-                        return L.circleMarker(latlng, { color: "blue", radius: 5 });
-                    },
-                    onEachFeature: function (feature, layer) {
-                        layer.bindPopup(`<b>Stop:</b> ${feature.properties.name}<br>
-                                         <b>Municipality:</b> ${feature.properties.municipality}`);
-                    }
-                }).addTo(map);
+      // Helper to create hexagons
+      function createHexagon(center, size = 0.01) {
+        const [cx, cy] = center;
+        const hexCoords = [];
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i;
+          hexCoords.push([
+            cx + size * Math.cos(angle),
+            cy + size * Math.sin(angle),
+          ]);
+        }
+        hexCoords.push(hexCoords[0]);
+        return hexCoords;
+      }
+
+      // Generate color scale between BLUE and GREEN
+      function interpolateColor(color1, color2, factor) {
+        const hexToRgb = (hex) =>
+          hex
+            .replace(/^#/, "")
+            .match(/.{2}/g)
+            .map((x) => parseInt(x, 16));
+        const rgbToHex = (rgb) =>
+          "#" + rgb.map((x) => x.toString(16).padStart(2, "0")).join("");
+        const c1 = hexToRgb(color1);
+        const c2 = hexToRgb(color2);
+        const result = c1.map((v, i) => Math.round(v + (c2[i] - v) * factor));
+        return rgbToHex(result);
+      }
+
+      function interpolatePoint(lat1, lon1, lat2, lon2, factor) {
+        return [lat1 + (lat2 - lat1) * factor, lon1 + (lon2 - lon1) * factor];
+      }
+
+      // Initialize the map
+      const map = L.map("map", {
+        crs: L.CRS.Simple,
+      }).setView([0, 0], 5);
+
+      // Create empty layer groups
+      const gridLayer = L.layerGroup();
+      const routesLayer = L.layerGroup();
+      const tripsLayer = L.layerGroup();
+      const periodLayers = {}; //{periodId: { stations: { stationId: {{ staticLayouts: [], dynamicLayouts: [] }}}} }
+
+      //MAP helper functions
+      function initializePeriod(period, stationFeatures, flowFeatures) {
+        const periodStations = {};
+        const stationsLayer = L.layerGroup();
+        const maxCapacity = Math.max(
+          ...stationFeatures.map((s) => s.properties.capacity)
+        );
+
+        stationFeatures.forEach((f) => {
+          const { station_id, capacity, inventory } = f.properties;
+          const coords = f.geometry.coordinates;
+          const inv = inventory[period.toString()];
+          const radius = getRadius(capacity, maxCapacity);
+          const angle = (inv / capacity) * 360;
+
+          const base = L.circle([coords[1], coords[0]], {
+            radius,
+            color: COLORS.GREEN,
+            fillColor: COLORS.GREEN,
+            fillOpacity: 1,
+          });
+
+          const arc = L.semiCircle([coords[1], coords[0]], {
+            radius,
+            startAngle: 0,
+            stopAngle: angle,
+            color: COLORS.WHITE,
+            fillColor: COLORS.WHITE,
+            fillOpacity: 0.9,
+            weight: 0,
+          });
+
+          const label = L.marker([coords[1], coords[0]], {
+            icon: L.divIcon({
+              className: "station-label",
+              html: `<p><small style="white-space: nowrap;">${station_id}</small>
+              <br/><strong>${inv}/${capacity}</strong></p>`,
+            }),
+            interactive: false,
+          });
+
+          const popup = `<strong>Station ${station_id}</strong><br/>
+                      Capacity: ${capacity}<br/>
+                      Inventory (Period ${period}): ${inv}`;
+
+          base.bindPopup(popup);
+          arc.bindPopup(popup);
+          base.addTo(stationsLayer);
+          arc.addTo(stationsLayer);
+          label.addTo(stationsLayer);
+
+          label.on("click", () => {
+            togglePeriodStationLayers(period, station_id);
+          });
+          base.on("click", () => {
+            togglePeriodStationLayers(period, station_id);
+          });
+          arc.on("click", () => {
+            togglePeriodStationLayers(period, station_id);
+          });
+        });
+
+        // Group flows by station
+        flowFeatures
+          .filter((f) => f.properties.period === period)
+          .forEach((f) => {
+            //const stationFlowLayer = L.layerGroup();
+            const coords = f.geometry.coordinates;
+            const from = f.properties.from;
+            const to = f.properties.to;
+            const quantity = f.properties.quantity;
+            const latlngs = coords.map(([x, y]) => [y, x]);
+
+            const originCoords = latlngs[0];
+            const destinationCoords = latlngs[latlngs.length - 1];
+
+            const fromFlowsLayer = periodStations[from] ?? L.layerGroup();
+            const toFlowsLayer = periodStations[to] ?? L.layerGroup();
+
+            const fromLine = L.polyline(latlngs, {
+              color: COLORS.ORANGE,
+              weight: 3,
+              opacity: 0.9,
+            });
+            const toLine = L.polyline(latlngs, {
+              color: COLORS.GREEN,
+              weight: 2,
+              opacity: 0.9,
             });
 
-        // Load Shared Bike Stops
-        // fetch("shared_bike_stops.geojson")
-        //     .then(response => response.json())
-        //     .then(data => {
-        //         L.geoJSON(data, {
-        //             pointToLayer: function (feature, latlng) {
-        //                 return L.circleMarker(latlng, { color: "green", radius: 6 });
-        //             },
-        //             onEachFeature: function (feature, layer) {
-        //                 layer.bindPopup(`<b>Bike Stop:</b> ${feature.properties.name}`);
-        //             }
-        //         }).addTo(map);
-        //     });
+            const popup = `P${period}: ${from} → ${to}<br/>
+                                  Qty: ${quantity}<br/> `;
 
-        // // Load Trips (Origin-Destination)
-        // fetch("trips.geojson")
-        //     .then(response => response.json())
-        //     .then(data => {
-        //         L.geoJSON(data, {
-        //             style: function (feature) {
-        //                 return { color: "red", weight: 2 };
-        //             },
-        //             onEachFeature: function (feature, layer) {
-        //                 layer.bindPopup(`<b>Trip ID:</b> ${feature.properties.trip_id}<br>
-        //                                  <b>Distance:</b> ${feature.properties.distance_km.toFixed(2)} km`);
-        //             }
-        //         }).addTo(map);
-        //     });
+            // Compute midpoint
+            const [y1, x1] = latlngs[0];
+            const [y2, x2] = latlngs[latlngs.length - 1];
+            const nearFrom = interpolatePoint(y1, x1, y2, x2, 0.1);
+            const nearTo = interpolatePoint(y2, x2, y1, x1, 0.2);
+
+            // Add quantity label slightly below the arrow
+            const fromQuantityMarker = L.marker([nearFrom[0], nearFrom[1]], {
+              icon: L.divIcon({
+                className: "quantity-label",
+                html: "-" + quantity,
+              }),
+              interactive: false,
+            });
+
+            const toQuantityMarker = L.marker([nearTo[0], nearTo[1]], {
+              icon: L.divIcon({
+                className: "quantity-label",
+                html: "+" + quantity,
+              }),
+              interactive: false,
+            });
+
+            fromLine.bindPopup(popup);
+            fromQuantityMarker.bindPopup(popup);
+            fromLine.addTo(fromFlowsLayer);
+            fromQuantityMarker.addTo(fromFlowsLayer);
+
+            toLine.bindPopup(popup);
+            toQuantityMarker.bindPopup(popup);
+            toLine.addTo(toFlowsLayer);
+            toQuantityMarker.addTo(toFlowsLayer);
+
+            periodStations[from] = fromFlowsLayer;
+            periodStations[to] = toFlowsLayer;
+          });
+
+        periodLayers[period] = {
+          staticLayer: stationsLayer,
+          layersPerStation: periodStations,
+          initialized: true,
+          display: false,
+        };
+      }
+
+      function togglePeriodStationLayers(p, stationId) {
+        const period = periodLayers[p];
+        const display = !period.display;
+        if (period && period.initialized && stationId) {
+          const stationLayer = period.layersPerStation[stationId];
+          if (stationLayer) {
+            display ? stationLayer.addTo(map) : map.removeLayer(stationLayer);
+          }
+
+          period.display = display;
+        }
+      }
+
+      // Keep track of bounds
+      let gridBounds = [];
+
+      fetch("map_demo/grid.json")
+        .then((res) => res.json())
+        .then((data) => {
+          data.features.forEach((feature) => {
+            const [x, y] = feature.geometry.coordinates;
+            const hexCoords = createHexagon([x, y], 0.01);
+            gridBounds.push([y, x]);
+
+            L.polygon(
+              hexCoords.map(([hx, hy]) => [hy, hx]),
+              {
+                color: COLORS.GRAY,
+                weight: 1,
+                fillOpacity: 0.1,
+              }
+            ).addTo(gridLayer);
+          });
+
+          if (gridBounds.length) {
+            map.fitBounds(gridBounds);
+          }
+        });
+
+      fetch("map_demo/routes.json")
+        .then((res) => res.json())
+        .then((data) => {
+          // Get unique route names
+          const routeNames = [
+            ...new Set(data.features.map((f) => f.properties.route_name)),
+          ];
+
+          // Assign a color to each route
+          const routeColors = {};
+          routeNames.forEach((name, idx) => {
+            const factor =
+              routeNames.length === 1 ? 0 : idx / (routeNames.length - 1);
+            routeColors[name] = interpolateColor(
+              COLORS.BLUE,
+              COLORS.BLUE_LIGHT,
+              factor
+            );
+          });
+
+          L.geoJSON(data, {
+            coordsToLatLng: (coords) => L.latLng(coords[1], coords[0]),
+            style: (feature) => ({
+              color: routeColors[feature.properties.route_name] || COLORS.BLUE,
+              weight: 5,
+            }),
+          }).addTo(routesLayer);
+        });
+
+      // bike stations here
+      fetch("map_demo/bike_stations.json")
+        .then((res) => res.json())
+        .then((data) => {
+          const periods = data.metadata?.periods || [0]; // Fallback if missing
+          const features = data.features;
+          periods.forEach((period) => {
+            initializePeriod(
+              period,
+              features.filter((f) => f.geometry.type === "Point"),
+              features.filter(
+                (f) =>
+                  f.properties.type === "flow" &&
+                  f.geometry.type === "LineString"
+              )
+            );
+          });
+
+          const periodLayersControl = Object.keys(periodLayers).reduce(
+            (acc, period) => {
+              acc[`Period ${period}`] = periodLayers[period].staticLayer;
+              return acc;
+            },
+            {}
+          );
+          L.control
+            .layers(null, periodLayersControl, { collapsed: false })
+            .addTo(map);
+          if (periodLayers[0]) {
+            periodLayers[0].staticLayer.addTo(map);
+          }
+        });
+
+      fetch("map_demo/od_trips.json")
+        .then((res) => res.json())
+        .then((trips) => {
+          trips.forEach((trip) => {
+            const start = trip.coordinates[0];
+            const end = trip.coordinates[1];
+            L.polyline(
+              [
+                [start[1], start[0]],
+                [end[1], end[0]],
+              ],
+              {
+                color: COLORS.GRAY,
+                weight: Math.max(1, trip.demand / 10),
+                opacity: 0.6,
+              }
+            ).addTo(tripsLayer);
+          });
+        });
+
+      // Add layer control
+      const overlays = {
+        Grid: gridLayer,
+        Routes: routesLayer,
+        Trips: tripsLayer,
+        //Stations: stationsLayer,
+      };
+
+      L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+
+      // Add all layers to the map by default
+      gridLayer.addTo(map);
+      routesLayer.addTo(map);
+      //stationsLayer.addTo(map);
+      //tripsLayer.addTo(map);
     </script>
-</body>
+    <style>
+      .station-label {
+        text-align: center;
+        font-size: 12px;
+        line-height: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+      }
+      .station-label:hover {
+        background-color: blue;
+      }
+      .quantity-label {
+        font-size: 12px;
+        color: black;
+        text-align: center;
+        width: "100%";
+        height: "100%";
+      }
+    </style>
+  </body>
 </html>
