@@ -6,6 +6,9 @@ This repository contains a **Bike-Sharing Optimization Model** designed to optim
 
 Check out our [dynamic results demonstration map](https://inria.github.io/sum-network-design-bike-sharing). 
 
+For more information on the model class, check out the [API documentation](https://inria.github.io/sum-network-design-bike-sharing/network-design-bss-package/docs)
+
+
 ## ✨ Features
 - **Fleet Rebalancing Optimization**: Efficiently redistributes bikes using a fleet of capacitated trucks.
 - **Station Location & Capacity Optimization**: Determines the best locations and sizes for bike stations.
