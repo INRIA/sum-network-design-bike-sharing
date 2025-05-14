@@ -4,9 +4,9 @@
 ## Overview
 This repository contains a **Bike-Sharing Optimization Model** designed to optimize fleet rebalancing, station placement, and multimodal transportation integration. The model minimizes operational costs while ensuring efficient bike availability across a network.
 
-Check out our [dynamic results demonstration map](https://inria.github.io/sum-network-design-bike-sharing). 
-
-For more information on the model class, check out the [API documentation](https://inria.github.io/sum-network-design-bike-sharing/network-design-bss-package/docs)
+- Related research paper by [Zhenyu WU at INRIA](doc/Network_Design_BSS_PT_Zhenyu_0327.pdf)
+- Check out the [dynamic demonstration map](https://inria.github.io/sum-network-design-bike-sharing). 
+- For more information on how to run the model class, check out the [API documentation](https://inria.github.io/sum-network-design-bike-sharing/network-design-bss-package/docs)
 
 
 ## ✨ Features
