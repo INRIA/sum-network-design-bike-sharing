@@ -25,8 +25,76 @@
     </style>
   </head>
   <body>
-    <sum-network-bike-sharing
-      datasetpath="map_demo/data/simulations/4x4/"
-    ></sum-network-bike-sharing>
+    <style>
+      #config-controls {
+        z-index: 1000;
+        position: absolute;
+        top: 10px;
+        left: 100px;
+        background: white;
+        padding: 10px;
+        border-radius: 6px;
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: row;
+      }
+      #config-controls label {
+        display: flex;
+        align-items: center;
+        margin-left: 0.5em;
+      }
+    </style>
+    <div id="config-controls">
+      <label>
+        <input
+          type="radio"
+          name="demo-data"
+          value="map_demo/data/simulations/4x4/"
+          checked
+        />
+        Simulation grid 4x4 </label
+      ><br />
+      <label>
+        <input
+          type="radio"
+          name="demo-data"
+          value="map_demo/data/simulations/8x8/"
+        />
+        Simulation grid 8x8
+      </label>
+    </div>
+
+    <div id="map-container" style="height: 100vh">
+      <sum-network-bike-sharing
+        datasetpath="map_demo/data/simulations/4x4/"
+        style="display: block; height: 100%"
+      ></sum-network-bike-sharing>
+    </div>
+
+    <script>
+      document.querySelectorAll('input[name="demo-data"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          if (input.checked) {
+            const container = document.getElementById("map-container");
+            const newPath = input.value;
+
+            // Remove any existing map component
+            const oldComponent = container.querySelector(
+              "sum-network-bike-sharing"
+            );
+            if (oldComponent) oldComponent.remove();
+
+            // Create a new component with the selected dataset path
+            const newComponent = document.createElement(
+              "sum-network-bike-sharing"
+            );
+            newComponent.setAttribute("datasetpath", newPath);
+            newComponent.style.display = "block";
+            newComponent.style.height = "100%";
+            container.appendChild(newComponent);
+          }
+        });
+      });
+    </script>
   </body>
 </html>

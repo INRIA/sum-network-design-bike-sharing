@@ -65,6 +65,12 @@ class SumNetworkBikeSharing extends HTMLElement {
         width: "100%";
         height: "100%";
       }
+      .parameters-box {
+        background-color: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
     `;
     this.shadowRoot.appendChild(style);
 
@@ -92,8 +98,46 @@ class SumNetworkBikeSharing extends HTMLElement {
     this.map = L.map(this.shadowRoot.getElementById("map"), {
       crs: L.CRS.Simple,
     }).setView([0, 0], 5);
+  }
 
-    L.control.layers(null, this.layers, { collapsed: false }).addTo(this.map);
+  addControls() {
+    const periodLayersControl = Object.keys(this.periodLayers).reduce(
+      (acc, period) => {
+        acc[`Period ${period}`] = this.periodLayers[period].staticLayer;
+        return acc;
+      },
+      {}
+    );
+    L.control
+      .layers(periodLayersControl, this.layers, { collapsed: false })
+      .addTo(this.map);
+  }
+
+  addParametersBox(path) {
+    fetch(path + "tunable_parameters.json")
+      .then((res) => res.json())
+      .then((data) => {
+        const infoBox = L.control({ position: "bottomright" });
+        infoBox.onAdd = function () {
+          const div = L.DomUtil.create("div", "parameters-box");
+          div.innerHTML =
+            "<h4>Simulation Parameters</h4>" +
+            "<ul style='padding-left: 10px; font-size: 10px;'>" +
+            Object.entries(data)
+              .map(
+                ([key, value]) =>
+                  `<li style="white-space: wrap;max-width: 200px;"><strong>${key}:</strong> ${
+                    Array.isArray(value) || typeof value === "object"
+                      ? JSON.stringify(value)
+                      : value
+                  }</li>`
+              )
+              .join("") +
+            "</ul>";
+          return div;
+        };
+        infoBox.addTo(this.map);
+      });
   }
 
   resetMap() {
@@ -176,19 +220,11 @@ class SumNetworkBikeSharing extends HTMLElement {
           );
         });
 
-        const periodLayersControl = Object.keys(this.periodLayers).reduce(
-          (acc, period) => {
-            acc[`Period ${period}`] = this.periodLayers[period].staticLayer;
-            return acc;
-          },
-          {}
-        );
-        L.control
-          .layers(null, periodLayersControl, { collapsed: false })
-          .addTo(this.map);
         if (this.periodLayers[0]) {
           this.periodLayers[0].staticLayer.addTo(this.map);
         }
+
+        this.addControls();
       });
 
     fetch(path + "od_trips.json")
@@ -214,6 +250,8 @@ class SumNetworkBikeSharing extends HTMLElement {
     // Add to map
     this.layers.grid.addTo(this.map);
     this.layers.routes.addTo(this.map);
+
+    this.addParametersBox(path);
   }
 
   //MAP helper functions
